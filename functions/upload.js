@@ -15,25 +15,43 @@ export async function onRequestPost(context) {
             throw new Error('No file uploaded');
         }
 
-        const fileName = uploadFile.name;
-        const fileExtension = fileName.split('.').pop().toLowerCase();
+        // 生成精确到秒的日期时间字符串，例如 20260624_103015
+        const now = new Date();
+        const dateStr =
+            now.getFullYear() +
+            String(now.getMonth() + 1).padStart(2, '0') +
+            String(now.getDate()).padStart(2, '0') + '_' +
+            String(now.getHours()).padStart(2, '0') +
+            String(now.getMinutes()).padStart(2, '0') +
+            String(now.getSeconds()).padStart(2, '0');
+
+        // 提取原始扩展名
+        const originalExt = uploadFile.name.split('.').pop().toLowerCase();
+        // 新文件名：只用日期时间 + 扩展名，完全丢弃原文件名
+        const newFileName = dateStr + '.' + originalExt;
+
+        // 创建一个新文件对象，使用新文件名
+        const fileForUpload = new File([uploadFile], newFileName, { type: uploadFile.type });
+
+        const fileName = newFileName;
+        const fileExtension = originalExt;
 
         const telegramFormData = new FormData();
         telegramFormData.append("chat_id", env.TG_Chat_ID);
 
         // 根据文件类型选择合适的上传方式
         let apiEndpoint;
-        if (uploadFile.type.startsWith('image/')) {
-            telegramFormData.append("photo", uploadFile);
+        if (fileForUpload.type.startsWith('image/')) {
+            telegramFormData.append("photo", fileForUpload);
             apiEndpoint = 'sendPhoto';
-        } else if (uploadFile.type.startsWith('audio/')) {
-            telegramFormData.append("audio", uploadFile);
+        } else if (fileForUpload.type.startsWith('audio/')) {
+            telegramFormData.append("audio", fileForUpload);
             apiEndpoint = 'sendAudio';
-        } else if (uploadFile.type.startsWith('video/')) {
-            telegramFormData.append("video", uploadFile);
+        } else if (fileForUpload.type.startsWith('video/')) {
+            telegramFormData.append("video", fileForUpload);
             apiEndpoint = 'sendVideo';
         } else {
-            telegramFormData.append("document", uploadFile);
+            telegramFormData.append("document", fileForUpload);
             apiEndpoint = 'sendDocument';
         }
 
@@ -58,7 +76,7 @@ export async function onRequestPost(context) {
                     Label: "None",
                     liked: false,
                     fileName: fileName,
-                    fileSize: uploadFile.size,
+                    fileSize: fileForUpload.size,
                 }
             });
         }
